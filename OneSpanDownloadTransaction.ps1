@@ -9,7 +9,7 @@ function FetchTransactions {
 
     # Make the API call to fetch the transactions
     try {
-        $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ "Authorisation" = "Bearer $apiKey" }
+        $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ "Authorization" = "Bearer $apiKey" }
 
         # Display the transactions in the list box
         $transactionList.Items.Clear()
@@ -40,7 +40,7 @@ function DownloadDocumentZip {
 
     # Make the API call to download the document zip
     try {
-        Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ "Authorisation" = "Bearer $apiKey" } -OutFile $outputFilePath
+        Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ "Authorization" = "Bearer $apiKey" } -OutFile $outputFilePath
 
         [System.Windows.Forms.MessageBox]::Show("Document Zip Downloaded Successfully To $outputFilePath")
     } catch {
