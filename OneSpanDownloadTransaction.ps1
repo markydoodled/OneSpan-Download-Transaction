@@ -1,89 +1,41 @@
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+# Set the API key and base URL
+$apiKey = "your_api_key"
+$apiUrl = "https://apps.esignlive.eu/api/packages"
 
-# Function to fetch available transactions (packages) using OneSpan API
-function FetchTransactions {
-    # Define the OneSpan API endpoint and the API key (replace with your actual API key)
-    $apiUrl = "https://api.onespan.com/api/packages"
-    $apiKey = "YOUR_API_KEY"
+# Create headers for authentication
+$headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
+$headers.Add("Authorization", "Basic $apiKey")
 
-    # Make the API call to fetch the transactions
-    try {
-        $response = Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ "Authorization" = "Bearer $apiKey" }
-
-        # Display the transactions in the list box
-        $transactionList.Items.Clear()
-        foreach ($transaction in $response) {
-            $transactionList.Items.Add("ID: $($transaction.id), Name: $($transaction.name)")
-        }
-
-        if ($transactionList.Items.Count -eq 0) {
-            $transactionList.Items.Add("No Transactions Found.")
-        }
-    } catch {
-        [System.Windows.Forms.MessageBox]::Show("Error: $_")
-    }
-}
-
-# Function to download the document zip of a selected transaction using OneSpan API
-function DownloadDocumentZip {
+# Function to retrieve information about a specific document in a transaction and download its PDF version
+function Get-DocumentInfoAndDownloadPDF {
     param (
-        [string]$packageID
+        [string]$transactionId,
+        [string]$documentId
     )
-
-    # Define the OneSpan API endpoint and the API key (replace with your actual API key)
-    $apiUrl = "https://api.onespan.com/api/packages/$packageID/documents/zip"
-    $apiKey = "YOUR_API_KEY"
-
-    # Specify the output file path for the downloaded zip
-    $outputFilePath = "$([System.IO.Path]::GetTempPath())$packageID.zip"
-
-    # Make the API call to download the document zip
+    
+    $documentInfoUrl = "$apiUrl/$transactionId/documents/$documentId"
+    $documentPdfUrl = "$documentInfoUrl/pdf"
+    
     try {
-        Invoke-RestMethod -Uri $apiUrl -Method Get -Headers @{ "Authorization" = "Bearer $apiKey" } -OutFile $outputFilePath
-
-        [System.Windows.Forms.MessageBox]::Show("Document Zip Downloaded Successfully To $outputFilePath")
+        # Retrieve information about the specified document
+        $response = Invoke-RestMethod -Uri $documentInfoUrl -Headers $headers -Method Get
+        Write-Output "Document Information Retrieved Successfully:"
+        Write-Output $response | ConvertTo-Json -Depth 5
+        
+        # Download the PDF version of the document
+        $pdfFileName = "$($documentId).pdf"
+        Invoke-RestMethod -Uri $documentPdfUrl -Headers $headers -Method Get -OutFile $pdfFileName
+        Write-Output "PDF Document Downloaded Successfully: $pdfFileName"
     } catch {
-        [System.Windows.Forms.MessageBox]::Show("Error: $_")
+        Write-Output "Failed to retrieve document information or download PDF. Error: $_"
     }
 }
 
-# Create the form
-$form = New-Object System.Windows.Forms.Form
-$form.Text = "OneSpan Transactions"
-$form.Size = New-Object System.Drawing.Size(500, 400)
+# Prompt user for transaction ID and document ID
+$transactionId = Read-Host -Prompt "Enter the transaction ID"
+$documentId = Read-Host -Prompt "Enter the document ID"
 
-# Create the fetch transactions button
-$fetchButton = New-Object System.Windows.Forms.Button
-$fetchButton.Text = "Fetch Transactions"
-$fetchButton.Location = New-Object System.Drawing.Point(10, 20)
-$fetchButton.Size = New-Object System.Drawing.Size(150, 30)
-$fetchButton.Add_Click({
-    FetchTransactions
-})
-$form.Controls.Add($fetchButton)
+# Retrieve information about the specified document and download its PDF version
+Get-DocumentInfoAndDownloadPDF -transactionId $transactionId -documentId $documentId
 
-# Create the list box to display transactions
-$transactionList = New-Object System.Windows.Forms.ListBox
-$transactionList.Location = New-Object System.Drawing.Point(10, 60)
-$transactionList.Size = New-Object System.Drawing.Size(460, 250)
-$form.Controls.Add($transactionList)
-
-# Create the download button
-$downloadButton = New-Object System.Windows.Forms.Button
-$downloadButton.Text = "Download Document Zip"
-$downloadButton.Location = New-Object System.Drawing.Point(10, 320)
-$downloadButton.Size = New-Object System.Drawing.Size(150, 30)
-$downloadButton.Add_Click({
-    if ($transactionList.SelectedItem) {
-        $selectedTransaction = $transactionList.SelectedItem.ToString()
-        $packageID = ($selectedTransaction -split "ID: ")[1] -split ", Name: ")[0]
-        DownloadDocumentZip -packageID $packageID
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("Please Select A Transaction.")
-    }
-})
-$form.Controls.Add($downloadButton)
-
-# Show the form
-[void]$form.ShowDialog()
+Read-Host -Prompt "Press any key to close the window..."
